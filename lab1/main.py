@@ -1,8 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-#błąd 10^-3
-
 def funSeriesExpansion(n, x):
     x = np.array(x)  # konwersja do numpy array
     m = np.arange(n)
@@ -30,7 +28,7 @@ x_vals = np.linspace(0, 1, 300)
 true_vals = np.arcsin(x_vals)
 plt.figure()
 plt.plot(x_vals, true_vals, label="arcsin(x)", color="black")
-for n_selected in [0, 2, 7]:
+for n_selected in [1, 5, 9]:
     approx_vals = np.array([funSeriesExpansion(n_selected, xv) for xv in x_vals])
     plt.plot(x_vals, approx_vals, label=f"n={n_selected}")
 plt.xlabel("x")
@@ -49,14 +47,79 @@ def testSeriesRandom():
     rel_err_tests = np.where(true_vals_tests != 0, abs_err_tests / np.abs(true_vals_tests) * 100, 0)
     
     # Wypisanie tabeli wyników w stylu pierwszej tabeli (używając f-string)
-    print(f"\n{'x':>10} {'Rozwinięcie':>15} {'Abs error':>15} {'Rel error [%]':>15}")
+    print(f"\n{'x':>10} {'Rozwinięcie':>15} {'Błąd bezwzględny':>20} {'Błąd względny [%]':>20}")
     
     # Utwórz macierz danych do wydruku
     table_data = np.column_stack((x_tests, approx_vals_tests, abs_err_tests, rel_err_tests))
     
     # Formatowanie z wykorzystaniem funkcji map i join (bez jawnych pętli)
-    formatted_rows = map(lambda row: f"{row[0]:10.5f} {row[1]:15.8f} {row[2]:15.8f} {row[3]:15.8f}", table_data)
+    formatted_rows = map(lambda row: f"{row[0]:10.5f} {row[1]:15.8f} {row[2]:20.8f} {row[3]:20.8f}", table_data)
     print('\n'.join(formatted_rows))
 
 # Wywołanie procedury testującej
 testSeriesRandom()
+
+def find_min_n_for_error_threshold(epsilon=1e-3, use_relative_error=True):
+    """
+    Wyznacza minimalne n dla różnych wartości x, aby błąd był mniejszy niż epsilon.
+    Używa operacji wektoryzowanych zamiast jawnych pętli po x.
+    """
+    # Generowanie równomiernie rozłożonych wartości x
+    x_values = np.linspace(0, 1, 100)
+    true_values = np.arcsin(x_values)
+    
+    # Maksymalne n do sprawdzenia
+    max_n = 30
+    
+    # Pre-obliczenie wszystkich rozwinięć dla n od 0 do max_n dla wszystkich x
+    all_expansions = np.zeros((len(x_values), max_n + 1))
+    for n in range(max_n + 1):
+        all_expansions[:, n] = funSeriesExpansion(n, x_values)
+    
+    # Obliczenie błędów
+    abs_errors = np.abs(all_expansions - true_values.reshape(-1, 1))
+    
+    if use_relative_error:
+        # Dla błędu względnego dzielimy przez wartość rzeczywistą
+        errors = np.where(
+            true_values.reshape(-1, 1) != 0,
+            abs_errors / np.abs(true_values.reshape(-1, 1)),
+            abs_errors  # dla x=0 używamy błędu bezwzględnego
+        )
+    else:
+        errors = abs_errors
+    
+    # Znajdź minimalne n dla każdego x (bez pętli)
+    mask = errors < epsilon
+    # Dla każdego wiersza znajdź indeks pierwszej wartości True
+    min_n_indices = np.argmax(mask, axis=1)
+    
+    # Jeśli dla jakiegoś x żadne n nie spełnia warunku, ustaw max_n
+    min_n_indices = np.where(np.any(mask, axis=1), min_n_indices, max_n)
+    
+    return x_values, min_n_indices
+
+def plot_min_n_dependency():
+    """
+    Rysuje wykres zależności minimalnego n od wartości x, 
+    dla którego błąd < epsilon
+    """
+    epsilon = 1e-3  # zadana granica błędu
+    
+    # Wyznacz minimalne n dla błędu względnego i bezwzględnego
+    x_rel, min_n_rel = find_min_n_for_error_threshold(epsilon, use_relative_error=True)
+    x_abs, min_n_abs = find_min_n_for_error_threshold(epsilon, use_relative_error=False)
+    
+    # Tworzenie wykresu
+    plt.figure(figsize=(12, 6))
+    plt.plot(x_rel, min_n_rel, 'o-', markersize=4, label="Błąd względny")
+    plt.plot(x_abs, min_n_abs, 's-', markersize=4, label="Błąd bezwzględny")
+    plt.xlabel("Wartość x")
+    plt.ylabel("Minimalne n")
+    plt.title(f"Minimalne n potrzebne dla błędu < {epsilon}")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+# Wywołanie funkcji wykreślającej zależność minimalnego n od x
+plot_min_n_dependency()
