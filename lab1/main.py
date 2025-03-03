@@ -3,15 +3,34 @@ import matplotlib.pyplot as plt
 
 def funSeriesExpansion(n, x):
     x = np.array(x)  # konwersja do numpy array
+    
+    # Obsługa przypadku n=0 - zwróć x
+    if n == 0:
+        return x
+    
     m = np.arange(n)
-    max_index = 2*(n-1) if n > 0 else 0
-    # obliczenie silni od 0! do (2*(n-1))! przy pomocy np.cumprod
-    fac = np.concatenate(([1], np.cumprod(np.arange(1, max_index+1)))) if n > 0 else np.array([1])
-    coef = fac[2*m] / (4**m * (fac[m]**2) * (2*m + 1))
+    max_index = 2*(n-1)
+    # obliczenie silni od 0! do (2*(n-1))!
+    fac = np.concatenate(([1], np.cumprod(np.arange(1, max_index+1))))
+    
+    # Bezpieczne obliczanie współczynników
+    with np.errstate(divide='ignore', invalid='ignore'):
+        coef = np.where(m == 0, 1.0, fac[2*m] / (4**m * (fac[m]**2) * (2*m + 1)))
+    
+    # Wszystkie NaN lub inf wartości zastępujemy zerami
+    coef = np.nan_to_num(coef)
+    
     if x.ndim == 0:  # x jest skalarem
         return np.sum(coef * x**(2*m+1))
     else:
-        return np.sum(coef * np.power(x.reshape(-1, 1), (2*m+1).reshape(1, -1)), axis=1)
+        # Bezpieczne mnożenie wektorów z obsługą nieprawidłowych wartości
+        expanded_x = x.reshape(-1, 1)
+        expanded_powers = (2*m+1).reshape(1, -1)
+        with np.errstate(invalid='ignore'):
+            powers = np.power(expanded_x, expanded_powers)
+        # Zastąp nieprawidłowe wartości zerami
+        powers = np.nan_to_num(powers)
+        return np.sum(coef * powers, axis=1)
 
 # Dodane: wypisywanie tabeli porównującej wartości rozwinięcia z funkcją arcsin(x)
 x = 0.5  # przykładowa wartość x z przedziału [0,1]
@@ -44,7 +63,14 @@ def testSeriesRandom():
     # Używamy rozwinięcia dla n = 7 (dowolny dobry wybór)
     approx_vals_tests = funSeriesExpansion(7, x_tests)
     abs_err_tests = np.abs(approx_vals_tests - true_vals_tests)
-    rel_err_tests = np.where(true_vals_tests != 0, abs_err_tests / np.abs(true_vals_tests) * 100, 0)
+    
+    # Bezpieczne obliczanie błędu względnego z użyciem np.where i np.errstate
+    with np.errstate(divide='ignore', invalid='ignore'):
+        rel_err_tests = np.where(true_vals_tests != 0, 
+                                abs_err_tests / np.abs(true_vals_tests) * 100, 
+                                0)
+    # Zastąp nieskończone wartości i NaN zerami
+    rel_err_tests = np.nan_to_num(rel_err_tests)
     
     # Wypisanie tabeli wyników w stylu pierwszej tabeli (używając f-string)
     print(f"\n{'x':>10} {'Rozwinięcie':>15} {'Błąd bezwzględny':>20} {'Błąd względny [%]':>20}")
@@ -80,12 +106,10 @@ def find_min_n_for_error_threshold(epsilon=1e-3, use_relative_error=True):
     abs_errors = np.abs(all_expansions - true_values.reshape(-1, 1))
     
     if use_relative_error:
-        # Dla błędu względnego dzielimy przez wartość rzeczywistą
-        errors = np.where(
-            true_values.reshape(-1, 1) != 0,
-            abs_errors / np.abs(true_values.reshape(-1, 1)),
-            abs_errors  # dla x=0 używamy błędu bezwzględnego
-        )
+        # Bezpieczne obliczenie błędu względnego bez ostrzeżeń
+        with np.errstate(divide='ignore', invalid='ignore'):
+            raw_errors = abs_errors / np.abs(true_values.reshape(-1, 1))
+            errors = np.where(np.isfinite(raw_errors), raw_errors, abs_errors)
     else:
         errors = abs_errors
     
