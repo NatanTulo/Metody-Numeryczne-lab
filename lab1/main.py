@@ -48,15 +48,14 @@ def testSeriesRandom():
     abs_err_tests = np.abs(approx_vals_tests - true_vals_tests)
     rel_err_tests = np.where(true_vals_tests != 0, abs_err_tests / np.abs(true_vals_tests) * 100, 0)
     
-    # Wypisanie tabeli wyników przy użyciu funkcji wektorowych (bez pętli)
-    print("\n{:^10} {:^15} {:^15} {:^15}".format("x", "Rozwinięcie", "Abs error", "Rel error [%]"))
+    # Wypisanie tabeli wyników w stylu pierwszej tabeli (używając f-string)
+    print(f"\n{'x':>10} {'Rozwinięcie':>15} {'Abs error':>15} {'Rel error [%]':>15}")
     
     # Utwórz macierz danych do wydruku
     table_data = np.column_stack((x_tests, approx_vals_tests, abs_err_tests, rel_err_tests))
     
-    # Formatowanie z wykorzystaniem funkcji map i join (bez jawnych pętli i IO)
-    formats = ['{:10.5f}', '{:15.8f}', '{:15.8f}', '{:15.8f}']
-    formatted_rows = map(lambda row: ' '.join(f.format(val) for f, val in zip(formats, row)), table_data)
+    # Formatowanie z wykorzystaniem funkcji map i join (bez jawnych pętli)
+    formatted_rows = map(lambda row: f"{row[0]:10.5f} {row[1]:15.8f} {row[2]:15.8f} {row[3]:15.8f}", table_data)
     print('\n'.join(formatted_rows))
 
 # Wywołanie procedury testującej
