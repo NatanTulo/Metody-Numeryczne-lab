@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import io
 
 #błąd 10^-3
 
@@ -55,12 +54,10 @@ def testSeriesRandom():
     # Utwórz macierz danych do wydruku
     table_data = np.column_stack((x_tests, approx_vals_tests, abs_err_tests, rel_err_tests))
     
-    # Użyj np.savetxt z opcją fmt do formatowania i wydruku do StringIO
-    output = io.StringIO()
-    np.savetxt(output, table_data, fmt=('%10.5f', '%15.8f', '%15.8f', '%15.8f'))
-    
-    # Wydrukuj wynik
-    print(output.getvalue())
+    # Formatowanie z wykorzystaniem funkcji map i join (bez jawnych pętli i IO)
+    formats = ['{:10.5f}', '{:15.8f}', '{:15.8f}', '{:15.8f}']
+    formatted_rows = map(lambda row: ' '.join(f.format(val) for f, val in zip(formats, row)), table_data)
+    print('\n'.join(formatted_rows))
 
 # Wywołanie procedury testującej
 testSeriesRandom()
