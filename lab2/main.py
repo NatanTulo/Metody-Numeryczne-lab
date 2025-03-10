@@ -33,3 +33,20 @@ plt.title("Absolute error of derivative approximation")
 plt.grid(True, which="both", ls="--")
 plt.show()
 
+# Znalezienie optymalnego dx (minimalny błąd)
+best_index = np.argmin(errors)
+best_dx = dx_vals[best_index]
+print(f"\nOptimal dx = {best_dx:.10f} with minimal error = {errors[best_index]:.15f}")
+
+# Wyznaczenie przybliżenia pochodnej na przedziale [0,1] -> ograniczamy x, 
+# żeby x±best_dx ∈ [-1,1]
+x_vals = np.linspace(best_dx, 1 - best_dx, 101)
+approx_deriv_x = funDerivativeApprox(x_vals, best_dx, fun)
+
+plt.figure()
+plt.plot(x_vals, approx_deriv_x, marker='o', linestyle='-')
+plt.xlabel("x")
+plt.ylabel("Approximate derivative")
+plt.title(f"Approximate derivative using best dx = {best_dx:.10f}")
+plt.grid(True)
+plt.show()
