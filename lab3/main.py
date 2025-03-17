@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
 # 1. Dane wejściowe oraz parametry (zgodnie z przykładem z wykładu)
 Q_a = 200   # m^3/h

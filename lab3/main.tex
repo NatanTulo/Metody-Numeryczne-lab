@@ -1,0 +1,134 @@
+\documentclass{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{polski}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+
+\title{Analiza zawartości CO w pomieszczeniach}
+\author{Natan Tu\l odziecki}
+\date{March 2025}
+
+\begin{document}
+
+\maketitle
+
+\section{Sformułowanie problemu}
+
+Rozważamy problem ustalonego stężenia tlenku węgla (CO) w pięciu połączonych pomieszczeniach restauracji. Powietrze do pomieszczeń 1 i 2 dostaje się z zewnątrz (odpowiednio $Q_a$ oraz $Q_b$), a pomieszczenia 4 i 5 usuwają powietrze na zewnątrz ($Q_c$ oraz $Q_d$). W restauracji występują dwa źródła CO: 
+\begin{itemize}
+    \item dym papierosowy w pomieszczeniu 1,
+    \item wadliwe urządzenie kuchenne w pomieszczeniu 5.
+\end{itemize}
+Stężenie CO w pomieszczeniach pozostaje w stanie ustalonym, co prowadzi do układu równań bilansu masy.
+
+\section{Układ równań}
+Bilans masy CO dla każdego pomieszczenia prowadzi do następującego układu równań:
+\begin{align}
+    0 &= W_s + Q_a C_a + E_{12} (C_2 - C_1) \\
+    0 &= Q_b C_b + E_{12} (C_1 - C_2) + E_{23} (C_3 - C_2) \\
+    0 &= E_{23} (C_3 - C_2) + E_{34} (C_4 - C_3) + E_{35} (C_5 - C_3) \\
+    0 &= E_{34} (C_3 - C_4) - Q_c C_4 \\
+    0 &= E_{35} (C_5 - C_3) + W_g - Q_d C_5
+\end{align}
+
+\section{Postać macierzowa}
+Układ równań można zapisać w postaci macierzowej:
+\[ A c = b \]
+
+gdzie:
+
+\[
+A =
+\begin{bmatrix}
+    -E_{12} & E_{12} & 0 & 0 & 0 \\
+    E_{12} & -(E_{12} + E_{23}) & E_{23} & 0 & 0 \\
+    0 & E_{23} & -(E_{23} + E_{34} + E_{35}) & E_{34} & E_{35} \\
+    0 & 0 & E_{34} & - (E_{34} + Q_c) & 0 \\
+    0 & 0 & E_{35} & 0 & - (E_{35} + Q_d)
+\end{bmatrix}
+\]
+
+\[
+c =
+\begin{bmatrix}
+    C_1 \\
+    C_2 \\
+    C_3 \\
+    C_4 \\
+    C_5
+\end{bmatrix}
+\]
+
+\[
+b =
+\begin{bmatrix}
+    -W_s - Q_a C_a \\
+    -Q_b C_b \\
+    0 \\
+    0 \\
+    -W_g
+\end{bmatrix}
+\]
+
+\section{Podstawienie wartości liczbowych}
+Podstawiając wartości z danych:
+\begin{align*}
+    E_{12} &= 25, \quad E_{23} = 50, \quad E_{34} = 50, \quad E_{35} = 25 \\
+    Q_a &= 200, \quad Q_b = 300, \quad Q_c = 150, \quad Q_d = 350 \\
+    W_s &= 1500, \quad W_g = 2500, \quad C_a = 2, \quad C_b = 2
+\end{align*}
+Otrzymujemy konkretną postać macierzy $A$ i wektora $b$.
+
+\section{Obliczenia numeryczne i rozwiązanie}
+
+Macierz $A$ została rozłożona na postać $LU$, co umożliwia rozwiązanie układu równań metodą podstawienia:
+\[
+L =
+\begin{bmatrix}
+    1 & 0 & 0 & 0 & 0 \\
+    -1 & 1 & 0 & 0 & 0 \\
+    0 & -1 & 1 & 0 & 0 \\
+    0 & 0 & -0.6667 & 1 & 0 \\
+    0 & 0 & -0.3333 & -0.0964 & 1
+\end{bmatrix}
+\]
+
+\[
+U =
+\begin{bmatrix}
+    -25 & 25 & 0 & 0 & 0 \\
+    0 & -50 & 50 & 0 & 0 \\
+    0 & 0 & -75 & 50 & 25 \\
+    0 & 0 & 0 & -166 & 16 \\
+    0 & 0 & 0 & 0 & -364
+\end{bmatrix}
+\]
+
+Rozwiązanie układu równań:
+\begin{align*}
+    C_1 &= 169.84 \text{ mg/m}^3, \quad C_2 = 93.84 \text{ mg/m}^3, \\
+    C_3 &= 43.84 \text{ mg/m}^3, \quad C_4 = 10.97 \text{ mg/m}^3, \quad C_5 = 9.60 \text{ mg/m}^3.
+\end{align*}
+
+\section{Omówienie wyników}
+Największe stężenie CO występuje w pomieszczeniu 1 (169.84 mg/m$^3$), co wynika z dużego źródła emisji dymu papierosowego. W pomieszczeniu 5 stężenie jest stosunkowo niskie (9.60 mg/m$^3$), dzięki efektywnemu odpływowi powietrza.
+
+Obniżenie emisji źródeł CO (np. przez lepszą wentylację lub usunięcie wadliwego urządzenia) mogłoby znacząco poprawić jakość powietrza w pomieszczeniach.
+
+\subsection{Udział procentowy źródeł emisji CO w pokoju dla dzieci}
+Analiza udziału procentowego poszczególnych źródeł emisji w pomieszczeniu przeznaczonym dla dzieci wykazała:
+
+\[
+\begin{aligned}
+    \text{Papierosy:} & \quad 56.38\% \\
+    \text{Grill:} & \quad 6.04\% \\
+    \text{Ulica:} & \quad 37.59\%
+\end{aligned}
+\]
+
+Największy wpływ na stężenie CO ma dym papierosowy, co sugeruje konieczność ograniczenia palenia w pomieszczeniach lub poprawy wentylacji w celu zmniejszenia ekspozycji osób przebywających w restauracji.
+
+\end{document}
