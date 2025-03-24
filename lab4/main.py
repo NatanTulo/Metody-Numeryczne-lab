@@ -20,18 +20,20 @@ plt.plot(x, y1, label='f1(x)')
 plt.plot(x, y2, label='f2(x)')
 plt.xlabel('x')
 plt.ylabel('y')
+plt.gca().set_aspect('equal', adjustable='datalim')
+plt.xlim(-5, 5)          # dodane ograniczenia osi x
+plt.ylim(-10, 5)         # dodane ograniczenia osi y
 plt.legend()
 plt.grid(True)
 # Dodanie punktów P1, P2, P3, P4 do wykresu:
-points = [(-1.375, 1.080), (-0.5339, 4.213), (-0.5011, 4.25), (0.90848, -0.293)]
+points = [(-1.375, 1.080), (-0.5339, 4.213), (0.90848, -0.293)]
 for p in points:
     plt.plot(p[0], p[1], 'ro')  # Zaznaczenie punktu czerwoną kropką
 plt.show()
 
-# przybliżone rozwiązania graficzne (na oko) - 4 rozwiązania:
+# przybliżone rozwiązania graficzne (na oko) - 3 rozwiązania:
 # P1(-1.375,1.080)
 # P2(-0.5339,4.213)
-# P3(-0.5011,4.25)
 # P4(0.90848,-0.293)
 
 
@@ -86,6 +88,9 @@ plt.plot(solution, y_sol, 'ro', label='Solution')
 plt.xlabel('x')
 plt.ylabel('y')
 plt.grid(True)
+plt.gca().set_aspect('equal', adjustable='datalim')
+plt.xlim(-5, 5)          # dodane ograniczenia osi x
+plt.ylim(-10, 5)         # dodane ograniczenia osi y
 plt.legend()
 plt.title('Intersection Point Using Iterative Substitution Method')
 plt.show()
@@ -109,12 +114,19 @@ plt.plot(bisect_solution, y_bisect, 'go', label='Rozwiązanie bisekcją')
 plt.xlabel('x')
 plt.ylabel('y')
 plt.grid(True)
+plt.gca().set_aspect('equal', adjustable='datalim')
+plt.xlim(-5, 5)          # dodane ograniczenia osi x
+plt.ylim(-10, 5)         # dodane ograniczenia osi y
 plt.legend()
 plt.title('Intersection Point Using Bisection Method')
 plt.show()
 
 # Dodanie rozwiązania metodą Newtona-Raphsona
-initial_guesses = [-1.4, -0.55, -0.5, 0.9]
+# Zmodyfikowano blok metodą Newtona-Raphsona (scipy.optimize.newton)
+# Poprzednia wersja:
+# initial_guesses = [-1.4, -0.55, -0.5, 0.9]
+# Nowa wersja: usunięto punkt -0.5 (trzeci element), który jest niepoprawny
+initial_guesses = [-1.4, -0.55, 0.9]
 newton_solutions = []
 
 for guess in initial_guesses:
@@ -138,6 +150,73 @@ for idx, sol in enumerate(newton_solutions):
 plt.xlabel('x')
 plt.ylabel('y')
 plt.grid(True)
+plt.gca().set_aspect('equal', adjustable='datalim')
+plt.xlim(-5, 5)          # dodane ograniczenia osi x
+plt.ylim(-10, 5)         # dodane ograniczenia osi y
 plt.legend()
 plt.title('Punkty przecięcia metodą Newtona-Raphsona')
+plt.show()
+
+
+# Dodanie implementacji metody Newtona-Raphsona (własna implementacja z użyciem rozwinięcia Taylora do pierwszej pochodnej)
+
+def newton_method(f, fprime, x0, tol=1e-10, max_iter=1000):
+    x = x0
+    for i in range(max_iter):
+        try:
+            fx = f(x)
+        except ZeroDivisionError:
+            print(f"ZeroDivisionError encountered in f(x) for x = {x:.10f}")
+            return x, i, False
+        try:
+            fpx = fprime(x)
+        except ZeroDivisionError:
+            print(f"ZeroDivisionError encountered in fprime(x) for x = {x:.10f}")
+            return x, i, False
+        if abs(fpx) < 1e-12:
+            print(f"Pochodna bliska zero dla x = {x:.10f}. Metoda zatrzymana.")
+            return x, i, False
+        x_new = x - fx/fpx
+        if abs(x_new - x) < tol:
+            return x_new, i+1, True
+        x = x_new
+    return x, max_iter, False
+
+def fprime(x):
+    # f(x) = f1(x) - f2(x)
+    # f1(x) = -3x² - 2x + 4       -> f1'(x) = -6x - 2
+    # f2(x) = -x²/(1+2x)          -> f2'(x) = -2x/(1+2x) + 2x²/(1+2x)²
+    return (-6*x - 2) + (2*x/(1+2*x) - 2*x*x/(1+2*x)**2)
+
+# Zmodyfikowano blok własnej implementacji metody Newtona-Raphsona
+# Poprzednia wersja:
+# initial_guesses_own = [-1.4, -0.55, -0.49, 0.9]
+# Nowa wersja: usunięto punkt -0.49 (trzeci element), który powoduje błąd (asymptota)
+initial_guesses_own = [-1.4, -0.55, 0.9]
+own_newton_solutions = []
+
+print("\nRozwiązania znalezione metodą Newtona-Raphsona (własna implementacja):")
+for guess in initial_guesses_own:
+    sol, iterations, converged = newton_method(f, fprime, guess)
+    if converged:
+        y_val = f1(sol)
+        print(f"x = {sol:.10f}, y = {y_val:.10f}, Iteracje: {iterations}, Error: |f1(x)-f2(x)| = {abs(f1(sol)-f2(sol)):.10e}")
+        own_newton_solutions.append(sol)
+    else:
+        print(f"Metoda nie zbiega dla punktu startowego {guess}")
+
+plt.figure(figsize=(10, 6))
+plt.plot(x, y1, label='f1(x) = -3x²-2x+4')
+plt.plot(x, y2, label='f2(x) = -x²/(1+2x)')
+for idx, sol in enumerate(own_newton_solutions):
+    y_val = f1(sol)
+    plt.plot(sol, y_val, 'co', label='Własna Newtona-Raphson' if idx == 0 else "")
+plt.xlabel('x')
+plt.ylabel('y')
+plt.grid(True)
+plt.gca().set_aspect('equal', adjustable='datalim')
+plt.xlim(-5, 5)          # dodane ograniczenia osi x
+plt.ylim(-10, 5)         # dodane ograniczenia osi y
+plt.legend()
+plt.title('Punkty przecięcia metodą Newtona-Raphsona (własna implementacja)')
 plt.show()
