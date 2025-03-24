@@ -113,3 +113,31 @@ plt.legend()
 plt.title('Intersection Point Using Bisection Method')
 plt.show()
 
+# Dodanie rozwiązania metodą Newtona-Raphsona
+initial_guesses = [-1.4, -0.55, -0.5, 0.9]
+newton_solutions = []
+
+for guess in initial_guesses:
+    try:
+        sol = opt.newton(f, guess, tol=1e-10, maxiter=1000)
+        newton_solutions.append(sol)
+    except RuntimeError as e:
+        print(f"Newton method failed for initial guess {guess}: {e}")
+
+print("\nRozwiązania znalezione metodą Newtona-Raphsona:")
+for sol in newton_solutions:
+    y_newton = f1(sol)
+    print(f"x = {sol:.10f}, y = {y_newton:.10f}, Error: |f1(x)-f2(x)| = {abs(f1(sol)-f2(sol)):.10e}")
+
+plt.figure(figsize=(10, 6))
+plt.plot(x, y1, label='f1(x) = -3x²-2x+4')
+plt.plot(x, y2, label='f2(x) = -x²/(1+2x)')
+for idx, sol in enumerate(newton_solutions):
+    y_val = f1(sol)
+    plt.plot(sol, y_val, 'mo', label='Newtona-Raphson' if idx == 0 else "")
+plt.xlabel('x')
+plt.ylabel('y')
+plt.grid(True)
+plt.legend()
+plt.title('Punkty przecięcia metodą Newtona-Raphsona')
+plt.show()
