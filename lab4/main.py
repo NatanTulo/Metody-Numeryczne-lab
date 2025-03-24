@@ -2,6 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.optimize as opt
 
+X_MIN = -2
+X_MAX = 2
+Y_MIN = -2
+Y_MAX = 5
+
 def f1(x):
     return -3*x*x-2*x+4
 
@@ -13,16 +18,24 @@ def f1(x):
 def f2(x):
     return -x*x/(1+2*x)
 
+# Usuwamy poprzednią funkcję plot_with_breaks i dodajemy nową funkcję, która dzieli przedział na dwa segmenty
+def plot_f2_segments(x_range, label=None, **kwargs):
+    x = np.linspace(x_range[0], x_range[1], 1000)
+    epsilon = 1e-3  # pomijamy wartości blisko x = -0.5
+    mask1 = x < (-0.5 - epsilon)
+    mask2 = x > (-0.5 + epsilon)
+    plt.plot(x[mask1], f2(x[mask1]), label=label, **kwargs)
+    plt.plot(x[mask2], f2(x[mask2]), **kwargs)  # bez etykiety, by nie powielać legendy
+
 x = np.linspace(-2, 2, 1000)
 y1 = f1(x)
-y2 = f2(x)
 plt.plot(x, y1, label='f1(x)')
-plt.plot(x, y2, label='f2(x)')
+plot_f2_segments((-2, 2), label='f2(x)')   # rysowanie f2 jako dwa oddzielne segmenty
 plt.xlabel('x')
 plt.ylabel('y')
 plt.gca().set_aspect('equal', adjustable='datalim')
-plt.xlim(-5, 5)          # dodane ograniczenia osi x
-plt.ylim(-10, 5)         # dodane ograniczenia osi y
+plt.xlim(X_MIN, X_MAX)          # dodane ograniczenia osi x
+plt.ylim(Y_MIN, Y_MAX)         # dodane ograniczenia osi y
 plt.legend()
 plt.grid(True)
 # Dodanie punktów P1, P2, P3, P4 do wykresu:
@@ -83,14 +96,14 @@ y2 = f2(x)
 
 plt.figure(figsize=(10, 6))
 plt.plot(x, y1, label='f1(x) = -3x²-2x+4')
-plt.plot(x, y2, label='f2(x) = -x²/(1+2x)')
+plot_f2_segments((-2, 2), label='f2(x) = -x²/(1+2x)')  # rysowanie f2 jako dwa segmenty
 plt.plot(solution, y_sol, 'ro', label='Solution')
 plt.xlabel('x')
 plt.ylabel('y')
 plt.grid(True)
 plt.gca().set_aspect('equal', adjustable='datalim')
-plt.xlim(-5, 5)          # dodane ograniczenia osi x
-plt.ylim(-10, 5)         # dodane ograniczenia osi y
+plt.xlim(X_MIN, X_MAX)          # dodane ograniczenia osi x
+plt.ylim(Y_MIN, Y_MAX)         # dodane ograniczenia osi y
 plt.legend()
 plt.title('Intersection Point Using Iterative Substitution Method')
 plt.show()
@@ -108,15 +121,15 @@ print(f"y = {y_bisect:.10f}")
 print(f"Error: |f1(x) - f2(x)| = {abs(f1(bisect_solution)-f2(bisect_solution)):.10f}")
 
 plt.figure(figsize=(10, 6))
-plt.plot(x, y1, label='f1(x) = -3x²-2x+4')
-plt.plot(x, y2, label='f2(x) = -x²/(1+2x)')
+plt.plot(x, f1(x), label='f1(x) = -3x²-2x+4')
+plot_f2_segments((-2, 2), label='f2(x) = -x²/(1+2x)') 
 plt.plot(bisect_solution, y_bisect, 'go', label='Rozwiązanie bisekcją')
 plt.xlabel('x')
 plt.ylabel('y')
 plt.grid(True)
 plt.gca().set_aspect('equal', adjustable='datalim')
-plt.xlim(-5, 5)          # dodane ograniczenia osi x
-plt.ylim(-10, 5)         # dodane ograniczenia osi y
+plt.xlim(X_MIN, X_MAX)          # dodane ograniczenia osi x
+plt.ylim(Y_MIN, Y_MAX)         # dodane ograniczenia osi y
 plt.legend()
 plt.title('Intersection Point Using Bisection Method')
 plt.show()
@@ -142,8 +155,8 @@ for sol in newton_solutions:
     print(f"x = {sol:.10f}, y = {y_newton:.10f}, Error: |f1(x)-f2(x)| = {abs(f1(sol)-f2(sol)):.10e}")
 
 plt.figure(figsize=(10, 6))
-plt.plot(x, y1, label='f1(x) = -3x²-2x+4')
-plt.plot(x, y2, label='f2(x) = -x²/(1+2x)')
+plt.plot(x, f1(x), label='f1(x) = -3x²-2x+4')
+plot_f2_segments((-2, 2), label='f2(x) = -x²/(1+2x)')
 for idx, sol in enumerate(newton_solutions):
     y_val = f1(sol)
     plt.plot(sol, y_val, 'mo', label='Newtona-Raphson' if idx == 0 else "")
@@ -151,8 +164,8 @@ plt.xlabel('x')
 plt.ylabel('y')
 plt.grid(True)
 plt.gca().set_aspect('equal', adjustable='datalim')
-plt.xlim(-5, 5)          # dodane ograniczenia osi x
-plt.ylim(-10, 5)         # dodane ograniczenia osi y
+plt.xlim(X_MIN, X_MAX)          # dodane ograniczenia osi x
+plt.ylim(Y_MIN, Y_MAX)         # dodane ograniczenia osi y
 plt.legend()
 plt.title('Punkty przecięcia metodą Newtona-Raphsona')
 plt.show()
@@ -206,8 +219,8 @@ for guess in initial_guesses_own:
         print(f"Metoda nie zbiega dla punktu startowego {guess}")
 
 plt.figure(figsize=(10, 6))
-plt.plot(x, y1, label='f1(x) = -3x²-2x+4')
-plt.plot(x, y2, label='f2(x) = -x²/(1+2x)')
+plt.plot(x, f1(x), label='f1(x) = -3x²-2x+4')
+plot_f2_segments((-2, 2), label='f2(x) = -x²/(1+2x)')
 for idx, sol in enumerate(own_newton_solutions):
     y_val = f1(sol)
     plt.plot(sol, y_val, 'co', label='Własna Newtona-Raphson' if idx == 0 else "")
@@ -215,8 +228,8 @@ plt.xlabel('x')
 plt.ylabel('y')
 plt.grid(True)
 plt.gca().set_aspect('equal', adjustable='datalim')
-plt.xlim(-5, 5)          # dodane ograniczenia osi x
-plt.ylim(-10, 5)         # dodane ograniczenia osi y
+plt.xlim(X_MIN, X_MAX)          # dodane ograniczenia osi x
+plt.ylim(Y_MIN, Y_MAX)         # dodane ograniczenia osi y
 plt.legend()
 plt.title('Punkty przecięcia metodą Newtona-Raphsona (własna implementacja)')
 plt.show()
