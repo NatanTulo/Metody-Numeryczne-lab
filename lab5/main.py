@@ -2,6 +2,7 @@ import numpy as np
 import scipy.signal as signal
 from scipy.linalg import solve_discrete_are
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 iloczyn = 1 * 9 * 3 * 5 * 2 * 7
 print("Równanie nr: " + str(iloczyn % 24))
@@ -107,5 +108,75 @@ plt.title("Odpowiedź skokowa systemu ze sterowaniem LQR")
 plt.xlabel("Czas")
 plt.ylabel("y")
 plt.grid(True)
+
+# Przedstawienie wykresu odpowiedzi skokowej układu z modyfikowanym A (A-BF)
+F = K      # przyjmujemy F = K
+A_new = A - B @ F
+system_cl = signal.dlti(A_new, B, C, D, dt=1)
+t_cl, y_cl = signal.dstep(system_cl, n=20)
+y_cl = np.squeeze(y_cl[0])
+plt.figure()
+plt.stem(t_cl, y_cl)
+plt.title("Odpowiedź skokowa układu z modyfikowanym A (A-BF)")
+plt.xlabel("Czas")
+plt.ylabel("y")
+plt.grid(True)
 plt.show()
 
+# Dodanie animacji zmiennych c1 i c2 na jednym wykresie
+fig, ax = plt.subplots()
+line, = ax.plot([], [], 'bo-', lw=2)
+ax.set_xlim(0, n_steps)
+ax.set_ylim(-2, 4)  # dostosuj zakres osi y w razie potrzeby
+ax.set_xlabel("n")
+ax.set_ylabel("y")
+# Dodanie dodatkowego opisu animacji
+title = ax.set_title("Animacja: Odpowiedź układu LQR")
+desc_text = ax.text(0.05, 0.95, "", transform=ax.transAxes, fontsize=10, verticalalignment='top',
+                    bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5))
+
+init_cond = np.array([1, 1, 1])
+
+def init():
+    line.set_data([], [])
+    desc_text.set_text("")
+    return line, desc_text
+
+def animate(frame):
+    period = 100
+    c1_val = 0.1 + (10 - 0.1) * (0.5 * (1 + np.sin(2 * np.pi * frame / period)))
+    c2_val = 0.1 + (10 - 0.1) * (0.5 * (1 + np.cos(2 * np.pi * frame / period)))
+    
+    Q_val = c1_val * np.eye(3)
+    R_val = c2_val
+    P_val = solve_discrete_are(A, B, Q_val, R_val)
+    K_val = np.linalg.inv(B.T @ P_val @ B + R_val) @ (B.T @ P_val @ A)
+    
+    x = init_cond.copy()
+    x_hist = [x]
+    for _ in range(n_steps):
+        u = -K_val @ x
+        x = A @ x + B.flatten() * u
+        x_hist.append(x)
+    x_hist = np.array(x_hist)
+    y_hist = (C @ x_hist.T).flatten()
+    t_hist = np.arange(n_steps + 1)
+    line.set_data(t_hist, y_hist)
+    title.set_text(f"Animacja: Odpowiedź układu LQR\n(c1: {c1_val:.2f}, c2: {c2_val:.2f})")
+    # Dodanie opisu podykresu z informacją o sterowaniu LQR
+    desc_text.set_text("Układ LQR ze sprzężeniem stanu\n"
+                       "Parametry:\n"
+                       f"  c1 (wag Q): {c1_val:.2f}\n"
+                       f"  c2 (waga R): {c2_val:.2f}\n"
+                       "Przykładowa odpowiedź y[n] symulowana dla n=0...20")
+    return line, title, desc_text
+
+anim = animation.FuncAnimation(fig, animate, init_func=init, frames=100, interval=100, blit=True)
+plt.show()
+
+
+# Komentarze:
+# Dla większego c1: system osiąga stabilizację szybciej (y[n] szybciej spada),
+# natomiast mniejsze c1 powodują wolniejszą stabilizację.
+# Dla większego c2: sygnał u[n] jest bardziej tłumiony, co może prowadzić do
+# oscylacyjnej odpowiedzi w y[n]. Przy mniejszym c2 sterowanie jest silniejsze.
