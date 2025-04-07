@@ -82,48 +82,21 @@ plt.show()
 # Metoda analityczna oparta o rozkład ułamków prostych - metoda residuów. 
 def analytical_step_response(t, params):
     k, tau, zeta, tau_z = params
-    
     omega_n = 1 / tau
-    
-    # Oblicz bieguny układu
-    if zeta < 1:  # Niedotłumiony
-        sigma = zeta * omega_n
+    if abs(zeta - 1) < 1e-6:
+        h = k * (1 - (1 + t/tau) * np.exp(-t/tau))
+    elif zeta < 1:
         omega_d = omega_n * np.sqrt(1 - zeta**2)
-        
-        # Użycie rozwiązania analitycznego dla układu niedotłumionego
-        h = np.zeros_like(t)
-        for i, ti in enumerate(t):
-            if ti <= 0:
-                h[i] = 0
-            else:
-                term1 = 1 - np.exp(-sigma * ti) * (np.cos(omega_d * ti) + (sigma/omega_d) * np.sin(omega_d * ti))
-                h[i] = k * term1
-    elif zeta == 1:  # Krytycznie tłumiony
-        h = np.zeros_like(t)
-        for i, ti in enumerate(t):
-            if ti <= 0:
-                h[i] = 0
-            else:
-                h[i] = k * (1 - (1 + omega_n * ti) * np.exp(-omega_n * ti))
-    else:  # Przetłumiony
-        p1 = -omega_n * (zeta + np.sqrt(zeta**2 - 1))
-        p2 = -omega_n * (zeta - np.sqrt(zeta**2 - 1))
-        
-        A1 = k * p2 / (p2 - p1)
-        A2 = -k * p1 / (p2 - p1)
-        
-        h = np.zeros_like(t)
-        for i, ti in enumerate(t):
-            if ti <= 0:
-                h[i] = 0
-            else:
-                h[i] = k + A1 * np.exp(p1 * ti) + A2 * np.exp(p2 * ti)
+        phi = np.arctan(zeta / np.sqrt(1 - zeta**2))
+        exp_term = np.exp(-zeta * omega_n * t)
+        h = k * (1 - exp_term / np.sin(phi) * np.sin(omega_d * t + phi))
+    else:
+        s1 = -omega_n * (zeta + np.sqrt(zeta**2 - 1))
+        s2 = -omega_n * (zeta - np.sqrt(zeta**2 - 1))
+        h = k * (1 - (s2 * np.exp(s1*t) - s1 * np.exp(s2*t)) / (s2 - s1))
     
-    # Zastosuj efekt zera przy -1/τz z użyciem analitycznej pochodnej
     if tau_z > 0:
-        h_derivative = np.gradient(h, t)
-        h = h + tau_z * h_derivative
-    
+        h = h * (1 + tau_z * np.gradient(h, t))
     return h
 
 # Oblicz analityczną odpowiedź skokową z optymalnymi parametrami
