@@ -4,116 +4,142 @@ import matplotlib.pyplot as plt
 # -------------------------
 # Wczytanie danych z pliku
 # -------------------------
-# Zakładamy, że plik 'data7.txt' zawiera pomiary (px, py) oddzielone spacjami lub średnikami.
-# W razie potrzeby można zmodyfikować separator w funkcji np.loadtxt (argument delimiter)
 try:
-    # Jeśli dane są oddzielone spacjami
     data = np.loadtxt('data7.txt')
 except Exception as e:
     print("Błąd wczytywania pliku 'data7.txt':", e)
     exit()
 
-# Załóżmy, że dane mają dwie kolumny: [px, py]
 px_meas = data[:, 0]
 py_meas = data[:, 1]
 
 # -------------------------
 # Parametry modelu
 # -------------------------
-T = 1.0  # Okres próbkowania, 1 sekunda
+T = 1.0  # okres próbkowania = 1 sekunda
 
-# Macierz przejścia stanu (A) dla modelu 2D:
-# x = [px, py, vx, vy]^T
+# Macierz przejścia stanu dla modelu 2D (stan: [px, py, vx, vy]^T)
 A = np.array([[1, 0, T, 0],
               [0, 1, 0, T],
               [0, 0, 1, 0],
               [0, 0, 0, 1]])
 
-# Macierz wejścia szumu procesowego (G)
+# Macierz wejścia szumu procesowego
 G = np.array([[0, 0],
               [0, 0],
               [1, 0],
               [0, 1]])
 
-# Macierz obserwacji (H) – czujnik mierzy tylko położenie (px, py)
+# Macierz obserwacji – pomiar tylko położenia (px, py)
 H = np.array([[1, 0, 0, 0],
               [0, 1, 0, 0]])
 
 # -------------------------
 # Parametry szumów
 # -------------------------
-# Szum procesowy: q ~ N(0, Q_temp) – zadany jako:
+# Szum procesowy podany jako Q_temp, następnie transformowany przez G
 Q_temp = np.array([[0.25, 0],
                    [0, 0.25]])
-# Po przekształceniu przez macierz G: Q = G·Q_temp·Gᵀ
 Q = G @ Q_temp @ G.T
 
-# Szum pomiarowy: w ~ N(0, R)
+# Szum pomiarowy
 R = np.array([[2, 0],
               [0, 2]])
 
 # -------------------------
-# Inicjalizacja stanu i macierzy kowariancji
+# Funkcja implementująca filtr Kalmana
 # -------------------------
-# Stan początkowy na podstawie pierwszego pomiaru, przyjmując prędkość początkową v[0] = 0
-x0 = np.array([px_meas[0], py_meas[0], 0, 0])
-x_hat = x0  # Estymata stanu
-# Macierz kowariancji początkowej: P[0|0] = 5·I
-P = 5 * np.eye(4)
+def run_kalman_filter(px_meas, py_meas, x0, title_suffix=""):
+    x_hat = x0.copy()
+    P = 5 * np.eye(4)  # P[0|0] = 5·I
+    
+    # Tablica do zapisywania estymat
+    estimates = [x_hat]
+    
+    # Pętla filtru Kalmana
+    for i in range(len(px_meas) - 1):
+        # Faza predykcji (aktualizacja czasu)
+        x_hat_pred = A @ x_hat
+        P_pred = A @ P @ A.T + Q
+        y_hat_pred = H @ x_hat_pred
+    
+        # Faza aktualizacji (pomiarów)
+        y_meas = np.array([px_meas[i+1], py_meas[i+1]])
+        innovation = y_meas - y_hat_pred
+        S = H @ P_pred @ H.T + R
+        K = P_pred @ H.T @ np.linalg.inv(S)
+        x_hat = x_hat_pred + K @ innovation
+        P = (np.eye(4) - K @ H) @ P_pred
+        
+        estimates.append(x_hat)
+    
+    # Przekształcenie listy estymat do macierzy numpy
+    estimates = np.array(estimates)
+    
+    # Predykcja 5 sekund do przodu
+    n_pred = 5
+    x_pred_current = x_hat.copy()
+    P_pred_future = P.copy()
+    
+    # Lista do przechowywania punktów przewidywanej trajektorii
+    pred_trajectory = [x_pred_current[:2]]
+    
+    # Dokonujemy predykcji przez kolejne 5 kroków
+    for _ in range(n_pred):
+        x_pred_current = A @ x_pred_current
+        P_pred_future = A @ P_pred_future @ A.T + Q
+        pred_trajectory.append(x_pred_current[:2])
+    
+    pred_trajectory = np.array(pred_trajectory)
+    
+    # Przewidywane położenie po 5 sekundach
+    px_pred, py_pred = x_pred_current[0], x_pred_current[1]
+    print(f"{title_suffix} - Przewidywane położenie po 5s: px = {px_pred:.2f}, py = {py_pred:.2f}")
+    
+    return estimates, pred_trajectory, (px_pred, py_pred)
 
-# Zapisywanie wyników
-estimates = [x_hat]
+# -------------------------
+# Przypadek 1: Prędkość początkowa zero
+# -------------------------
+x0_zero = np.array([px_meas[0], py_meas[0], 0, 0])
+print("Przypadek 1: Prędkość początkowa zero")
+estimates_zero, pred_trajectory_zero, final_pred_zero = run_kalman_filter(px_meas, py_meas, x0_zero, "Zerowa prędkość")
 
 # -------------------------
-# Implementacja filtru Kalmana
+# Przypadek 2: Prędkość początkowa obliczona z pierwszych dwóch pomiarów
 # -------------------------
-# Iterujemy dla kolejnych pomiarów (pomiar wykonany co sekundę)
-for i in range(len(px_meas) - 1):
-    # ---------- Faza predykcji (aktualizacja czasu) ----------
-    # 1. Predykcja stanu: x̂[n+1|n] = A * x̂[n|n]
-    x_hat_pred = A @ x_hat
-    
-    # 2. Predykcja macierzy kowariancji: P[n+1|n] = A * P[n|n] * Aᵀ + G·Q·Gᵀ
-    P_pred = A @ P @ A.T + Q
-    
-    # 3. Predykcja pomiaru: ŷ[n+1|n] = H * x̂[n+1|n]
-    y_hat_pred = H @ x_hat_pred
-    
-    # ---------- Faza aktualizacji (pomiarów) ----------
-    # Odczyt pomiaru w chwili n+1
-    y_meas = np.array([px_meas[i+1], py_meas[i+1]])
-    
-    # 4. Obliczenie innowacji: e[n+1] = y[n+1] − ŷ[n+1|n]
-    innovation = y_meas - y_hat_pred
-    
-    # 5. Obliczenie macierzy kowariancji innowacji: S[n+1] = H·P[n+1|n]·Hᵀ + R
-    S = H @ P_pred @ H.T + R
-    
-    # 6. Obliczenie wzmocnienia Kalmana: K[n+1] = P[n+1|n]·Hᵀ·(S[n+1])⁻¹
-    K = P_pred @ H.T @ np.linalg.inv(S)
-    
-    # 7. Aktualizacja estymaty stanu: x̂[n+1|n+1] = x̂[n+1|n] + K[n+1]*e[n+1]
-    x_hat = x_hat_pred + K @ innovation
-    
-    # 8. Aktualizacja macierzy kowariancji: P[n+1|n+1] = (I - K[n+1]*H)·P[n+1|n]
-    P = (np.eye(4) - K @ H) @ P_pred
-    
-    estimates.append(x_hat)
-
-# Przekształcamy listę estymat na macierz numpy dla wygodniejszego użycia przy wykresie
-estimates = np.array(estimates)
+vx0 = px_meas[1] - px_meas[0]  # bo T = 1.0
+vy0 = py_meas[1] - py_meas[0]
+x0_calculated = np.array([px_meas[0], py_meas[0], vx0, vy0])
+print(f"\nPrzypadek 2: Prędkość początkowa obliczona (vx0={vx0:.2f}, vy0={vy0:.2f})")
+estimates_calc, pred_trajectory_calc, final_pred_calc = run_kalman_filter(px_meas, py_meas, x0_calculated, "Obliczona prędkość")
 
 # -------------------------
-# Wizualizacja wyników
+# Wizualizacja porównawcza
 # -------------------------
-plt.figure(figsize=(8, 6))
-# Rzeczywiste pomiary oznaczamy jako czerwone kropki
-plt.plot(px_meas, py_meas, 'r.', label='Pomiary')
-# Estymowaną trajektorię oznaczamy jako niebieską linią
-plt.plot(estimates[:, 0], estimates[:, 1], 'b-', label='Estymowana trajektoria')
+plt.figure(figsize=(10, 8))
+
+# Pomiary
+plt.plot(px_meas, py_meas, 'rx', label='Pomiary')
+
+# Przypadek 1: Zerowa prędkość początkowa
+plt.plot(estimates_zero[:, 0], estimates_zero[:, 1], 'b-', label='Estymowana (v0=0)', linewidth=2)
+plt.plot(pred_trajectory_zero[:, 0], pred_trajectory_zero[:, 1], 'b--', linewidth=1.5)
+plt.plot(final_pred_zero[0], final_pred_zero[1], 'bo', markersize=8)
+
+# Przypadek 2: Obliczona prędkość początkowa
+plt.plot(estimates_calc[:, 0], estimates_calc[:, 1], 'g-', label=f'Estymowana (v[0] = (p[1]-p[0])/T)', linewidth=2)
+plt.plot(pred_trajectory_calc[:, 0], pred_trajectory_calc[:, 1], 'g--', linewidth=1.5)
+plt.plot(final_pred_calc[0], final_pred_calc[1], 'go', markersize=8)
+
 plt.xlabel('px')
 plt.ylabel('py')
-plt.title('Trajektoria samolotu - filtr Kalmana')
+plt.title('Porównanie trajektorii dla różnych prędkości początkowych')
 plt.legend()
 plt.grid()
 plt.show()
+
+# Wyświetl różnicę w predykcjach
+px_diff = final_pred_calc[0] - final_pred_zero[0]
+py_diff = final_pred_calc[1] - final_pred_zero[1]
+print(f"\nRóżnica w predykcji po 5s: Δpx = {px_diff:.2f}, Δpy = {py_diff:.2f}")
