@@ -76,34 +76,68 @@ def run_kalman_filter(px_meas, py_meas, x0, title_suffix=""):
     # Przekształcenie listy estymat do macierzy numpy
     estimates = np.array(estimates)
     
-    # Predykcja 5 sekund do przodu
+    # -------------------------
+    # Metoda 1: Bezpośrednia predykcja na 5 sekund w przód
+    # -------------------------
     n_pred = 5
     x_pred_current = x_hat.copy()
     P_pred_future = P.copy()
     
     # Lista do przechowywania punktów przewidywanej trajektorii
-    pred_trajectory = [x_pred_current[:2]]
+    pred_trajectory_direct = [x_pred_current[:2]]
     
     # Dokonujemy predykcji przez kolejne 5 kroków
     for _ in range(n_pred):
         x_pred_current = A @ x_pred_current
         P_pred_future = A @ P_pred_future @ A.T + Q
-        pred_trajectory.append(x_pred_current[:2])
+        pred_trajectory_direct.append(x_pred_current[:2])
     
-    pred_trajectory = np.array(pred_trajectory)
+    pred_trajectory_direct = np.array(pred_trajectory_direct)
+    px_pred_direct, py_pred_direct = x_pred_current[0], x_pred_current[1]
+    print(f"{title_suffix} - Metoda 1 - Przewidywane położenie po 5s: px = {px_pred_direct:.2f}, py = {py_pred_direct:.2f}")
     
-    # Przewidywane położenie po 5 sekundach
-    px_pred, py_pred = x_pred_current[0], x_pred_current[1]
-    print(f"{title_suffix} - Przewidywane położenie po 5s: px = {px_pred:.2f}, py = {py_pred:.2f}")
+    # -------------------------
+    # Metoda 2: Sekwencyjna predykcja co 1 sekundę z aktualizacją
+    # -------------------------
+    x_pred_seq = x_hat.copy()
+    P_pred_seq = P.copy()
     
-    return estimates, pred_trajectory, (px_pred, py_pred)
+    # Lista do przechowywania punktów przewidywanej trajektorii dla metody sekwencyjnej
+    pred_trajectory_seq = [x_pred_seq[:2]]
+    
+    for i in range(n_pred):
+        # Faza predykcji na 1s
+        x_pred_seq = A @ x_pred_seq
+        P_pred_seq = A @ P_pred_seq @ A.T + Q
+        
+        # Generujemy sztuczny "pomiar" na podstawie predykcji
+        # Dodajemy losowe zakłócenie, aby symulować rzeczywiste warunki
+        noise = np.random.multivariate_normal([0, 0], R)
+        fake_measurement = H @ x_pred_seq + noise
+        
+        # Faza aktualizacji - traktujemy predykcję z szumem jako nowy pomiar
+        y_meas = fake_measurement
+        y_pred = H @ x_pred_seq
+        innovation = y_meas - y_pred
+        S = H @ P_pred_seq @ H.T + R
+        K = P_pred_seq @ H.T @ np.linalg.inv(S)
+        x_pred_seq = x_pred_seq + K @ innovation
+        P_pred_seq = (np.eye(4) - K @ H) @ P_pred_seq
+        
+        pred_trajectory_seq.append(x_pred_seq[:2])
+    
+    pred_trajectory_seq = np.array(pred_trajectory_seq)
+    px_pred_seq, py_pred_seq = x_pred_seq[0], x_pred_seq[1]
+    print(f"{title_suffix} - Metoda 2 - Przewidywane położenie po 5s: px = {px_pred_seq:.2f}, py = {py_pred_seq:.2f}")
+    
+    return estimates, (pred_trajectory_direct, (px_pred_direct, py_pred_direct)), (pred_trajectory_seq, (px_pred_seq, py_pred_seq))
 
 # -------------------------
 # Przypadek 1: Prędkość początkowa zero
 # -------------------------
 x0_zero = np.array([px_meas[0], py_meas[0], 0, 0])
 print("Przypadek 1: Prędkość początkowa zero")
-estimates_zero, pred_trajectory_zero, final_pred_zero = run_kalman_filter(px_meas, py_meas, x0_zero, "Zerowa prędkość")
+estimates_zero, direct_pred_zero, seq_pred_zero = run_kalman_filter(px_meas, py_meas, x0_zero, "Zerowa prędkość")
 
 # -------------------------
 # Przypadek 2: Prędkość początkowa obliczona z pierwszych dwóch pomiarów
@@ -112,34 +146,43 @@ vx0 = px_meas[1] - px_meas[0]  # bo T = 1.0
 vy0 = py_meas[1] - py_meas[0]
 x0_calculated = np.array([px_meas[0], py_meas[0], vx0, vy0])
 print(f"\nPrzypadek 2: Prędkość początkowa obliczona (vx0={vx0:.2f}, vy0={vy0:.2f})")
-estimates_calc, pred_trajectory_calc, final_pred_calc = run_kalman_filter(px_meas, py_meas, x0_calculated, "Obliczona prędkość")
+estimates_calc, direct_pred_calc, seq_pred_calc = run_kalman_filter(px_meas, py_meas, x0_calculated, "Obliczona prędkość")
 
 # -------------------------
 # Wizualizacja porównawcza
 # -------------------------
-plt.figure(figsize=(10, 8))
+plt.figure(figsize=(12, 9))
 
 # Pomiary
 plt.plot(px_meas, py_meas, 'rx', label='Pomiary')
 
 # Przypadek 1: Zerowa prędkość początkowa
 plt.plot(estimates_zero[:, 0], estimates_zero[:, 1], 'b-', label='Estymowana (v0=0)', linewidth=2)
-plt.plot(pred_trajectory_zero[:, 0], pred_trajectory_zero[:, 1], 'b--', linewidth=1.5)
-plt.plot(final_pred_zero[0], final_pred_zero[1], 'bo', markersize=8)
+# Metoda 1 (bezpośrednia)
+plt.plot(direct_pred_zero[0][:, 0], direct_pred_zero[0][:, 1], 'b--', linewidth=1.5, label='Predykcja bezpośrednia (v0=0)')
+plt.plot(direct_pred_zero[1][0], direct_pred_zero[1][1], 'bo', markersize=10)
+# Metoda 2 (sekwencyjna)
+plt.plot(seq_pred_zero[0][:, 0], seq_pred_zero[0][:, 1], 'b:', linewidth=1.5, label='Predykcja sekwencyjna (v0=0)')
+plt.plot(seq_pred_zero[1][0], seq_pred_zero[1][1], 'b*', markersize=10)
 
 # Przypadek 2: Obliczona prędkość początkowa
 plt.plot(estimates_calc[:, 0], estimates_calc[:, 1], 'g-', label=f'Estymowana (v[0] = (p[1]-p[0])/T)', linewidth=2)
-plt.plot(pred_trajectory_calc[:, 0], pred_trajectory_calc[:, 1], 'g--', linewidth=1.5)
-plt.plot(final_pred_calc[0], final_pred_calc[1], 'go', markersize=8)
+# Metoda 1 (bezpośrednia)
+plt.plot(direct_pred_calc[0][:, 0], direct_pred_calc[0][:, 1], 'g--', linewidth=1.5, label='Predykcja bezpośrednia (v0=obliczona)')
+plt.plot(direct_pred_calc[1][0], direct_pred_calc[1][1], 'go', markersize=10)
+# Metoda 2 (sekwencyjna)
+plt.plot(seq_pred_calc[0][:, 0], seq_pred_calc[0][:, 1], 'g:', linewidth=1.5, label='Predykcja sekwencyjna (v0=obliczona)')
+plt.plot(seq_pred_calc[1][0], seq_pred_calc[1][1], 'g*', markersize=10)
 
 plt.xlabel('px')
 plt.ylabel('py')
-plt.title('Porównanie trajektorii dla różnych prędkości początkowych')
+plt.title('Porównanie metod predykcji dla różnych prędkości początkowych')
 plt.legend()
 plt.grid()
+plt.tight_layout()
 plt.show()
 
-# Wyświetl różnicę w predykcjach
-px_diff = final_pred_calc[0] - final_pred_zero[0]
-py_diff = final_pred_calc[1] - final_pred_zero[1]
-print(f"\nRóżnica w predykcji po 5s: Δpx = {px_diff:.2f}, Δpy = {py_diff:.2f}")
+# Wyświetl różnice w predykcjach
+print("\nRóżnice w predykcjach po 5s między metodami:")
+print(f"v0=0 - Różnica: Δpx = {seq_pred_zero[1][0] - direct_pred_zero[1][0]:.2f}, Δpy = {seq_pred_zero[1][1] - direct_pred_zero[1][1]:.2f}")
+print(f"v0=obliczona - Różnica: Δpx = {seq_pred_calc[1][0] - direct_pred_calc[1][0]:.2f}, Δpy = {seq_pred_calc[1][1] - direct_pred_calc[1][1]:.2f}")
